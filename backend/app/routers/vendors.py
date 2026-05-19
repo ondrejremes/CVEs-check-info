@@ -8,6 +8,31 @@ from app.schemas.vendor import VendorCreate, VendorUpdate, VendorOut
 router = APIRouter(prefix="/vendors", tags=["vendors"], dependencies=[Depends(require_api_key)])
 
 
+@router.get("/lookup")
+def lookup_vendor(q: str, db: Session = Depends(get_db)):
+    """Search known vendor DB by name and return suggested config."""
+    from app.services.vendor_lookup import lookup_vendor as _lookup
+    return _lookup(q)
+
+
+@router.post("/lookup/import", response_model=VendorOut, status_code=201)
+def import_vendor(data: dict, db: Session = Depends(get_db)):
+    """Create vendor from lookup result (auto-filled fields)."""
+    slug = data.get("slug", "")
+    if db.query(Vendor).filter(Vendor.slug == slug).first():
+        raise HTTPException(400, "Vendor already exists")
+    vendor = Vendor(
+        name=data["name"],
+        slug=slug,
+        advisory_url=data.get("advisory_url"),
+        rss_url=data.get("rss_url"),
+    )
+    db.add(vendor)
+    db.commit()
+    db.refresh(vendor)
+    return vendor
+
+
 @router.get("/", response_model=list[VendorOut])
 def list_vendors(db: Session = Depends(get_db)):
     return db.query(Vendor).order_by(Vendor.name).all()

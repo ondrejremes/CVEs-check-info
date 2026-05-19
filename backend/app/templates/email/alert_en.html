@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><style>
+  body { font-family: Arial, sans-serif; color: #333; }
+  .header { background: #1a3a5c; color: white; padding: 20px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+  th { background: #f0f4f8; text-align: left; padding: 8px 12px; border-bottom: 2px solid #ddd; }
+  td { padding: 8px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .CRITICAL { color: #c0392b; font-weight: bold; }
+  .HIGH     { color: #e67e22; font-weight: bold; }
+  .MEDIUM   { color: #f1c40f; }
+  .LOW      { color: #27ae60; }
+  .footer   { margin-top: 24px; font-size: 12px; color: #888; }
+</style></head>
+<body>
+<div class="header">
+  <h2>Security Alert — CVE Monitor</h2>
+</div>
+<p>Dear <strong>{{ customer.contact_person or customer.name }}</strong>,</p>
+<p>new security vulnerabilities have been detected for your monitored products:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>CVE ID</th>
+      <th>Severity</th>
+      <th>CVSS</th>
+      <th>Description</th>
+      <th>Details</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cve in cves %}
+    <tr>
+      <td><strong>{{ cve.cve_id }}</strong></td>
+      <td class="{{ cve.severity or '' }}">{{ cve.severity or '—' }}</td>
+      <td>{{ cve.cvss_score or '—' }}</td>
+      <td>{{ (cve.description or '')[:200] }}{% if cve.description and cve.description|length > 200 %}…{% endif %}</td>
+      <td>{% if cve.source_url %}<a href="{{ cve.source_url }}">Details</a>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="footer">
+  <p>This email was generated automatically by CVEs Check Info.<br>
+  Total vulnerabilities detected: <strong>{{ cves|length }}</strong></p>
+</div>
+</body>
+</html>

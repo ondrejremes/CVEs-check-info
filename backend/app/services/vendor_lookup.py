@@ -214,6 +214,34 @@ VENDOR_DB: list[dict] = [
         "rss_url": None,
         "cpe_vendor": "barracuda",
     },
+    {
+        "name": "Bitdefender",
+        "slug": "bitdefender",
+        "advisory_url": "https://www.bitdefender.com/en-us/support/security-advisories/",
+        "rss_url": "https://www.bitdefender.com/en-us/support/security-advisories/feed/",
+        "cpe_vendor": "bitdefender",
+    },
+    {
+        "name": "Avast",
+        "slug": "avast",
+        "advisory_url": "https://support.norton.com/sp/en/us/home/current/solutions/v131360087",
+        "rss_url": None,
+        "cpe_vendor": "avast",
+    },
+    {
+        "name": "Forcepoint",
+        "slug": "forcepoint",
+        "advisory_url": "https://support.forcepoint.com/s/article/Security-Advisories",
+        "rss_url": None,
+        "cpe_vendor": "forcepoint",
+    },
+    {
+        "name": "Wallix",
+        "slug": "wallix",
+        "advisory_url": "https://www.wallix.com/security-advisories/",
+        "rss_url": None,
+        "cpe_vendor": "wallix",
+    },
 ]
 
 

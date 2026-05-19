@@ -242,6 +242,13 @@ VENDOR_DB: list[dict] = [
         "rss_url": None,
         "cpe_vendor": "wallix",
     },
+    {
+        "name": "SecureEnvoy",
+        "slug": "secureenvoy",
+        "advisory_url": "https://www.secureenvoy.com/security-advisories",
+        "rss_url": None,
+        "cpe_vendor": "secureenvoy",
+    },
 ]
 
 

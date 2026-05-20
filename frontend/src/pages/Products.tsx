@@ -22,6 +22,8 @@ export default function Products() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loadingSuggest, setLoadingSuggest] = useState(false)
   const [suggestError, setSuggestError] = useState('')
+  const [manualName, setManualName] = useState('')
+  const [manualCpe, setManualCpe] = useState('')
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -84,6 +86,14 @@ export default function Products() {
     setSelected(new Set())
   }
 
+  const addManual = async () => {
+    if (!manualName.trim() || !suggestVendorId) return
+    await api.post('/products/', { name: manualName.trim(), vendor_id: suggestVendorId, cpe_prefix: manualCpe.trim() || null, version_pattern: '' })
+    qc.invalidateQueries({ queryKey: ['products'] })
+    setManualName('')
+    setManualCpe('')
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -131,11 +141,11 @@ export default function Products() {
                   <input type="checkbox"
                     checked={selected.size === suggestions.length}
                     onChange={e => toggleAll(e.target.checked)} />
-                  Vybrat vše ({suggestions.length} produktů)
+                  Vybrat vše ({suggestions.length} produktů z NVD)
                 </label>
                 <span className="text-xs text-gray-400">vybráno: {selected.size}</span>
               </div>
-              <div className="border rounded-lg overflow-auto max-h-80">
+              <div className="border rounded-lg overflow-auto max-h-72">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 text-gray-500 uppercase sticky top-0">
                     <tr>
@@ -167,11 +177,44 @@ export default function Products() {
                   className="bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 disabled:opacity-40">
                   Přidat vybrané ({selected.size})
                 </button>
-                <button onClick={() => { setShowSuggest(false); setSuggestions([]); setSelected(new Set()) }}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Zavřít</button>
               </div>
             </div>
           )}
+
+          {/* Manual add — for products not in NVD */}
+          {suggestVendorId > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 mb-1">
+                Produkt není v NVD? Přidejte ručně
+              </p>
+              <p className="text-xs text-gray-400 mb-3">
+                NVD eviduje jen produkty s aspoň jedním zdokumentovaným CVE. Produkty přidané bez CPE prefixu se párují podle názvu v textu CVE.
+              </p>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Název produktu *</label>
+                  <input className="input w-full" placeholder="např. Cortex XSIAM"
+                    value={manualName} onChange={e => setManualName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addManual()} />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">CPE prefix (nepovinný)</label>
+                  <input className="input w-full font-mono" placeholder="cpe:2.3:a:paloaltonetworks:..."
+                    value={manualCpe} onChange={e => setManualCpe(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addManual()} />
+                </div>
+                <button onClick={addManual} disabled={!manualName.trim()}
+                  className="flex items-center gap-1 bg-gray-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-900 disabled:opacity-40">
+                  <Plus size={14} /> Přidat
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex mt-4">
+            <button onClick={() => { setShowSuggest(false); setSuggestions([]); setSelected(new Set()); setManualName(''); setManualCpe('') }}
+              className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Zavřít</button>
+          </div>
         </div>
       )}
 

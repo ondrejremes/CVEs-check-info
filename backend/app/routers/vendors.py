@@ -146,7 +146,7 @@ KNOWN_VENDORS: dict[str, dict] = {
     },
     "sentinelone": {
         "name": "SentinelOne", "slug": "sentinelone",
-        "advisory_url": "https://www.sentinelone.com/trust/security-advisories/",
+        "advisory_url": "https://www.sentinelone.com/vulnerability-database/",
         "rss_url": None,
         # NVD CPE database contains no entries for SentinelOne
     },

@@ -144,6 +144,11 @@ KNOWN_VENDORS: dict[str, dict] = {
         "advisory_url": "https://www.avast.com/security/advisories",
         "rss_url": None,
     },
+    "sentinelone": {
+        "name": "SentinelOne", "slug": "sentinelone",
+        "advisory_url": "https://www.sentinelone.com/trust/security-advisories/",
+        "rss_url": None,
+    },
 }
 
 

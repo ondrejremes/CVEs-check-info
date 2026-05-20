@@ -10,6 +10,7 @@ class CVEOut(BaseModel):
     cvss_version: str | None
     severity: str | None
     vendor_id: int | None
+    vendor_name: str | None = None
     affected_products: str | None
     source: str | None
     source_url: str | None

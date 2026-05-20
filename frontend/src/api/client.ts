@@ -23,8 +23,8 @@ export interface Customer {
 export interface CVE {
   id: number; cve_id: string; description?: string
   cvss_score?: number; cvss_version?: string; severity?: string
-  vendor_id?: number; source?: string; source_url?: string
-  published_at?: string; fetched_at: string
+  vendor_id?: number; vendor_name?: string; source?: string; source_url?: string
+  published_at?: string; fetched_at: string; affected_products?: string
 }
 export interface CVEAlert {
   id: number; cve_id: number; customer_id: number

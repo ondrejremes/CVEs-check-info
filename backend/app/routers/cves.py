@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, contains_eager
 from app.database import get_db
 from app.auth import require_api_key
 from app.models.cve import CVE, CVEAlert
+from app.models.vendor import Vendor
 from app.schemas.cve import CVEOut, CVEAlertOut
 
 router = APIRouter(prefix="/cves", tags=["cves"], dependencies=[Depends(require_api_key)])
@@ -21,14 +22,14 @@ def list_cves(
         alerts = (
             db.query(CVEAlert)
             .filter(CVEAlert.customer_id == customer_id)
-            .options(joinedload(CVEAlert.cve))
+            .options(joinedload(CVEAlert.cve).joinedload(CVE.vendor))
             .offset(skip)
             .limit(limit)
             .all()
         )
         cves = [a.cve for a in alerts]
     else:
-        q = db.query(CVE)
+        q = db.query(CVE).options(joinedload(CVE.vendor))
         if vendor_id:
             q = q.filter(CVE.vendor_id == vendor_id)
         if severity:
@@ -45,7 +46,7 @@ def list_alerts(
     limit: int = Query(50, le=500),
     db: Session = Depends(get_db),
 ):
-    q = db.query(CVEAlert).options(joinedload(CVEAlert.cve))
+    q = db.query(CVEAlert).options(joinedload(CVEAlert.cve).joinedload(CVE.vendor))
     if customer_id:
         q = q.filter(CVEAlert.customer_id == customer_id)
     if notified is not None:

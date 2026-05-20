@@ -25,6 +25,10 @@ class CVE(Base):
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="cves")
     alerts: Mapped[list["CVEAlert"]] = relationship("CVEAlert", back_populates="cve", cascade="all, delete-orphan")
 
+    @property
+    def vendor_name(self) -> str | None:
+        return self.vendor.name if self.vendor else None
+
 
 class CVEAlert(Base):
     __tablename__ = "cve_alerts"

@@ -10,6 +10,7 @@ class Vendor(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    cpe_vendor: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="CPE vendor component for NVD lookup, overrides slug when set")
     advisory_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     rss_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

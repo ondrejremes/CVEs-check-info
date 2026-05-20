@@ -21,7 +21,7 @@ def suggest_products(vendor_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Vendor not found")
 
     headers = {"apiKey": settings.NVD_API_KEY} if settings.NVD_API_KEY else {}
-    cpe_match = f"cpe:2.3:*:{vendor.slug}:*"
+    cpe_match = f"cpe:2.3:*:{vendor.cpe_vendor or vendor.slug}:*"
 
     try:
         resp = httpx.get(

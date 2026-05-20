@@ -25,7 +25,7 @@ KNOWN_VENDORS: dict[str, dict] = {
         "rss_url": "https://www.fortiguard.com/rss/psirt.xml",
     },
     "palo alto": {
-        "name": "Palo Alto Networks", "slug": "paloalto",
+        "name": "Palo Alto Networks", "slug": "paloalto", "cpe_vendor": "paloaltonetworks",
         "advisory_url": "https://security.paloaltonetworks.com/",
         "rss_url": "https://security.paloaltonetworks.com/rss.xml",
     },
@@ -147,6 +147,12 @@ KNOWN_VENDORS: dict[str, dict] = {
     "sentinelone": {
         "name": "SentinelOne", "slug": "sentinelone",
         "advisory_url": "https://www.sentinelone.com/trust/security-advisories/",
+        "rss_url": None,
+        # NVD CPE database contains no entries for SentinelOne
+    },
+    "barracuda": {
+        "name": "Barracuda Networks", "slug": "barracuda",
+        "advisory_url": "https://www.barracuda.com/company/legal/trust-center/threat-advisories",
         "rss_url": None,
     },
 }

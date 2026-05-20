@@ -8,7 +8,7 @@ export const api = axios.create({
 })
 
 export interface Vendor {
-  id: number; name: string; slug: string
+  id: number; name: string; slug: string; cpe_vendor?: string
   advisory_url?: string; rss_url?: string; notes?: string; created_at: string
 }
 export interface Product {

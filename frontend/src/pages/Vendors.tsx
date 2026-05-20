@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Vendor } from '../api/client'
 import { Plus, Trash2, Pencil, Check, X, Search, Loader2 } from 'lucide-react'
 
-type VForm = { name: string; slug: string; advisory_url: string; rss_url: string; notes: string }
-const empty: VForm = { name: '', slug: '', advisory_url: '', rss_url: '', notes: '' }
+type VForm = { name: string; slug: string; cpe_vendor: string; advisory_url: string; rss_url: string; notes: string }
+const empty: VForm = { name: '', slug: '', cpe_vendor: '', advisory_url: '', rss_url: '', notes: '' }
 const toSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
 export default function Vendors() {
@@ -42,6 +42,7 @@ export default function Vendors() {
         apply({
           name: r.data.name ?? name,
           slug: r.data.slug ?? toSlug(name),
+          cpe_vendor: r.data.cpe_vendor ?? '',
           advisory_url: r.data.advisory_url ?? '',
           rss_url: r.data.rss_url ?? '',
         })
@@ -53,7 +54,7 @@ export default function Vendors() {
 
   const startEdit = (v: Vendor) => {
     setEditId(v.id)
-    setEditForm({ name: v.name, slug: v.slug, advisory_url: v.advisory_url ?? '', rss_url: v.rss_url ?? '', notes: v.notes ?? '' })
+    setEditForm({ name: v.name, slug: v.slug, cpe_vendor: v.cpe_vendor ?? '', advisory_url: v.advisory_url ?? '', rss_url: v.rss_url ?? '', notes: v.notes ?? '' })
   }
 
   const LookupBtn = ({ onClick }: { onClick: () => void }) => (
@@ -86,6 +87,8 @@ export default function Vendors() {
             </div>
             <input className="input" placeholder="Slug (vyplní se automaticky)"
               value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
+            <input className="input font-mono" placeholder="CPE vendor (pro NVD, např. paloaltonetworks)"
+              value={form.cpe_vendor} onChange={e => setForm({ ...form, cpe_vendor: e.target.value })} />
             <input className="input" placeholder="Advisory / web URL"
               value={form.advisory_url} onChange={e => setForm({ ...form, advisory_url: e.target.value })} />
             <input className="input" placeholder="RSS feed URL"
@@ -105,7 +108,7 @@ export default function Vendors() {
           <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
             <tr>
               <th className="px-4 py-3 text-left">Název</th>
-              <th className="px-4 py-3 text-left">Slug</th>
+              <th className="px-4 py-3 text-left">Slug / CPE vendor</th>
               <th className="px-4 py-3 text-left">Advisory URL</th>
               <th className="px-4 py-3 text-left">RSS URL</th>
               <th className="px-4 py-3"></th>
@@ -125,7 +128,11 @@ export default function Vendors() {
                     </button>
                   </div>
                 </td>
-                <td className="px-2 py-2 text-gray-400 font-mono text-xs">{v.slug}</td>
+                <td className="px-2 py-2">
+                  <input className="input text-xs w-full font-mono" placeholder="CPE vendor (pro NVD)"
+                    value={editForm.cpe_vendor} onChange={e => setEditForm({ ...editForm, cpe_vendor: e.target.value })} />
+                  <span className="text-gray-300 text-xs font-mono ml-1">{v.slug}</span>
+                </td>
                 <td className="px-2 py-2">
                   <input className="input text-xs w-full" placeholder="Advisory URL"
                     value={editForm.advisory_url} onChange={e => setEditForm({ ...editForm, advisory_url: e.target.value })} />
@@ -146,7 +153,12 @@ export default function Vendors() {
             ) : (
               <tr key={v.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium">{v.name}</td>
-                <td className="px-4 py-3 text-gray-400 font-mono text-xs">{v.slug}</td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  <span className="text-gray-500">{v.slug}</span>
+                  {v.cpe_vendor && v.cpe_vendor !== v.slug && (
+                    <span className="ml-1 text-blue-400" title="CPE vendor pro NVD">→ {v.cpe_vendor}</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 max-w-xs truncate">
                   {v.advisory_url
                     ? <a href={v.advisory_url} className="text-blue-600 hover:underline text-xs" target="_blank" rel="noreferrer">{v.advisory_url}</a>

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class VendorBase(BaseModel):
     name: str
     slug: str
+    cpe_vendor: str | None = None
     advisory_url: str | None = None
     rss_url: str | None = None
     notes: str | None = None
@@ -16,6 +17,7 @@ class VendorCreate(VendorBase):
 
 class VendorUpdate(BaseModel):
     name: str | None = None
+    cpe_vendor: str | None = None
     advisory_url: str | None = None
     rss_url: str | None = None
     notes: str | None = None

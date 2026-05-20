@@ -13,6 +13,7 @@ export default function Customers() {
   const [editId, setEditId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CForm>(empty)
   const [matrixId, setMatrixId] = useState<number | null>(null)
+  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ['customers'],
@@ -54,10 +55,13 @@ export default function Customers() {
     setEditForm({ name: c.name, email: c.email, language: c.language, contact_person: c.contact_person ?? '', notify_email: c.notify_email })
   }
 
-  // Group products by vendor for the matrix
-  const productsByVendor = vendors
-    .map(v => ({ vendor: v, products: products.filter(p => p.vendor_id === v.id) }))
-    .filter(g => g.products.length > 0)
+  const openMatrix = (customerId: number) => {
+    setMatrixId(matrixId === customerId ? null : customerId)
+    setSelectedVendorId(null)
+  }
+
+  // Vendors that have at least one product registered
+  const vendorsWithProducts = vendors.filter(v => products.some(p => p.vendor_id === v.id))
 
   const toggleProduct = (customer: Customer, product: Product) => {
     const assigned = customer.products.some(p => p.id === product.id)
@@ -165,7 +169,7 @@ export default function Customers() {
                       <Download size={12} /> Excel
                     </a>
                     <button
-                      onClick={() => setMatrixId(matrixId === customer.id ? null : customer.id)}
+                      onClick={() => openMatrix(customer.id)}
                       className={`flex items-center gap-1 text-xs border rounded px-2 py-1 ${matrixId === customer.id ? 'bg-blue-50 text-brand border-brand' : 'text-gray-500 hover:text-brand'}`}>
                       <Package size={12} /> Produkty ({customer.products.length})
                     </button>
@@ -178,35 +182,62 @@ export default function Customers() {
               )}
             </div>
 
-            {/* Product matrix */}
+            {/* Two-level product picker */}
             {matrixId === customer.id && (
-              <div className="border-t border-gray-100 px-6 py-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  Sledované produkty — zaškrtněte relevantní pro tohoto zákazníka
-                </p>
-                {productsByVendor.length === 0 ? (
-                  <p className="text-sm text-gray-400">Žádné produkty v databázi. Nejprve přidejte produkty na stránce Produkty.</p>
+              <div className="border-t border-gray-100">
+                {vendorsWithProducts.length === 0 ? (
+                  <p className="px-6 py-4 text-sm text-gray-400">Žádné produkty v databázi. Nejprve přidejte produkty na stránce Produkty.</p>
                 ) : (
-                  <div className="space-y-4">
-                    {productsByVendor.map(({ vendor, products: vProducts }) => (
-                      <div key={vendor.id}>
-                        <p className="text-xs font-semibold text-gray-600 mb-1.5">{vendor.name}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {vProducts.map(product => {
-                            const assigned = customer.products.some(p => p.id === product.id)
-                            return (
-                              <label key={product.id}
-                                className={`flex items-center gap-1.5 text-xs rounded-lg px-3 py-1.5 cursor-pointer border transition-colors ${assigned ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                                <input type="checkbox" className="accent-blue-600"
-                                  checked={assigned}
-                                  onChange={() => toggleProduct(customer, product)} />
-                                {product.name}
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex">
+                    {/* Vendor list */}
+                    <div className="w-48 border-r border-gray-100 py-2 shrink-0">
+                      <p className="px-4 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Výrobce</p>
+                      {vendorsWithProducts.map(v => {
+                        const assignedCount = products
+                          .filter(p => p.vendor_id === v.id)
+                          .filter(p => customer.products.some(cp => cp.id === p.id)).length
+                        const totalCount = products.filter(p => p.vendor_id === v.id).length
+                        return (
+                          <button key={v.id}
+                            onClick={() => setSelectedVendorId(selectedVendorId === v.id ? null : v.id)}
+                            className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between transition-colors ${selectedVendorId === v.id ? 'bg-blue-50 text-brand font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                            <span className="truncate">{v.name}</span>
+                            {assignedCount > 0 && (
+                              <span className="text-xs bg-blue-100 text-blue-600 rounded px-1.5 py-0.5 ml-1 shrink-0">
+                                {assignedCount}/{totalCount}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Products for selected vendor */}
+                    <div className="flex-1 py-3 px-4">
+                      {!selectedVendorId ? (
+                        <p className="text-sm text-gray-400 mt-2">← Vyberte výrobce</p>
+                      ) : (
+                        <>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                            {vendors.find(v => v.id === selectedVendorId)?.name}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {products.filter(p => p.vendor_id === selectedVendorId).map(product => {
+                              const assigned = customer.products.some(p => p.id === product.id)
+                              return (
+                                <label key={product.id}
+                                  className={`flex items-center gap-1.5 text-sm rounded-lg px-3 py-1.5 cursor-pointer border transition-colors ${assigned ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                                  <input type="checkbox" className="accent-blue-600"
+                                    checked={assigned}
+                                    onChange={() => toggleProduct(customer, product)} />
+                                  {product.name}
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

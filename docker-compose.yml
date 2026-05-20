@@ -14,12 +14,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   backend:
     build: ./backend
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:8000:8000"
     env_file:
       - ./backend/.env
     depends_on:
@@ -27,14 +27,28 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+    networks:
+      - internal
 
   frontend:
     build: ./frontend
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:5173:80"
     depends_on:
       - backend
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cves.rule=Host(`cves.localhost`)"
+      - "traefik.http.routers.cves.entrypoints=websecure"
+      - "traefik.http.routers.cves.tls=true"
+      - "traefik.http.services.cves.loadbalancer.server.port=80"
+
+networks:
+  internal:
+  traefik_proxy:
+    external: true
 
 volumes:
   db_data:

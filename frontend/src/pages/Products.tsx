@@ -72,13 +72,13 @@ export default function Products() {
   }
 
   const toggleAll = (checked: boolean) => {
-    setSelected(checked ? new Set(suggestions.map(s => s.cpe_prefix)) : new Set())
+    setSelected(checked ? new Set(suggestions.map(s => s.name)) : new Set())
   }
 
   const addSelected = async () => {
-    const toAdd = suggestions.filter(s => selected.has(s.cpe_prefix))
+    const toAdd = suggestions.filter(s => selected.has(s.name))
     for (const s of toAdd) {
-      await api.post('/products/', { name: s.name, vendor_id: suggestVendorId, cpe_prefix: s.cpe_prefix, version_pattern: '' })
+      await api.post('/products/', { name: s.name, vendor_id: suggestVendorId, cpe_prefix: s.cpe_prefix || null, version_pattern: '' })
     }
     qc.invalidateQueries({ queryKey: ['products'] })
     setShowSuggest(false)
@@ -141,7 +141,7 @@ export default function Products() {
                   <input type="checkbox"
                     checked={selected.size === suggestions.length}
                     onChange={e => toggleAll(e.target.checked)} />
-                  Vybrat vše ({suggestions.length} produktů z NVD)
+                  Vybrat vše ({suggestions.length} produktů)
                 </label>
                 <span className="text-xs text-gray-400">vybráno: {selected.size}</span>
               </div>
@@ -156,17 +156,17 @@ export default function Products() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {suggestions.map(s => (
-                      <tr key={s.cpe_prefix} className="hover:bg-blue-50 cursor-pointer"
+                      <tr key={s.name} className="hover:bg-blue-50 cursor-pointer"
                         onClick={() => {
                           const next = new Set(selected)
-                          next.has(s.cpe_prefix) ? next.delete(s.cpe_prefix) : next.add(s.cpe_prefix)
+                          next.has(s.name) ? next.delete(s.name) : next.add(s.name)
                           setSelected(next)
                         }}>
                         <td className="px-3 py-1.5 text-center">
-                          <input type="checkbox" readOnly checked={selected.has(s.cpe_prefix)} />
+                          <input type="checkbox" readOnly checked={selected.has(s.name)} />
                         </td>
                         <td className="px-3 py-1.5 font-medium text-gray-700">{s.name}</td>
-                        <td className="px-3 py-1.5 font-mono text-gray-400">{s.cpe_prefix}</td>
+                        <td className="px-3 py-1.5 font-mono text-gray-400">{s.cpe_prefix || <span className="text-gray-300">—</span>}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -124,6 +124,26 @@ KNOWN_VENDORS: dict[str, dict] = {
         "advisory_url": "https://support.citrix.com/",
         "rss_url": None,
     },
+    "wallix": {
+        "name": "Wallix", "slug": "wallix",
+        "advisory_url": "https://www.wallix.com/psirt/",
+        "rss_url": None,
+    },
+    "forcepoint": {
+        "name": "Forcepoint", "slug": "forcepoint",
+        "advisory_url": "https://support.forcepoint.com/s/article/Security-Advisories",
+        "rss_url": None,
+    },
+    "bitdefender": {
+        "name": "Bitdefender", "slug": "bitdefender",
+        "advisory_url": "https://www.bitdefender.com/support/security-advisories/",
+        "rss_url": None,
+    },
+    "avast": {
+        "name": "Avast", "slug": "avast",
+        "advisory_url": "https://www.avast.com/security/advisories",
+        "rss_url": None,
+    },
 }
 
 

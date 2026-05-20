@@ -40,8 +40,11 @@ def _get_cvss(cve_item: dict) -> tuple[float | None, str | None]:
     return None, None
 
 
-def fetch_nvd(db: Session, days_back: int = 7) -> int:
+def fetch_nvd(db: Session, days_back: int = 7, _report: bool = True) -> int:
     """Fetch CVEs published in the last `days_back` days from NVD API."""
+    from app.fetch_status import step_start, step_done
+    if _report:
+        step_start("NVD")
     pub_start = (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y-%m-%dT%H:%M:%S.000")
     pub_end = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000")
 
@@ -132,4 +135,6 @@ def fetch_nvd(db: Session, days_back: int = 7) -> int:
             break
 
     logger.info(f"NVD fetch complete: {saved} new CVEs saved")
+    if _report:
+        step_done("NVD", saved)
     return saved

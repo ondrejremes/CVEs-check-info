@@ -18,6 +18,8 @@ CVE_PATTERN = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
 
 def scrape_vendor_pages(db: Session) -> int:
     """Scrape all enabled web scrape configs and extract CVE IDs."""
+    from app.fetch_status import step_start, step_done
+    step_start("Web scraper")
     configs = (
         db.query(ScrapeConfig)
         .filter(ScrapeConfig.source_type == "web", ScrapeConfig.enabled == True)
@@ -33,6 +35,7 @@ def scrape_vendor_pages(db: Session) -> int:
             logger.error(f"Scrape error for config {config.id}: {e}")
             config.last_status = f"error: {e}"
     db.commit()
+    step_done("Web scraper", saved)
     return saved
 
 

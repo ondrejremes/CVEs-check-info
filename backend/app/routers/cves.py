@@ -63,16 +63,45 @@ def get_cve(cve_id: str, db: Session = Depends(get_db)):
     return cve
 
 
-@router.post("/fetch")
-async def trigger_fetch(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def _run_full_fetch(db: Session):
+    from app.fetch_status import start_fetch, step_start, step_done, finish_fetch
     from app.services.nvd_fetcher import fetch_nvd
     from app.services.rss_fetcher import fetch_rss_feeds
     from app.services.web_scraper import scrape_vendor_pages
     from app.services.paloalto_fetcher import fetch_paloalto
     from app.services.relevance import update_alerts
-    background_tasks.add_task(fetch_nvd, db)
-    background_tasks.add_task(fetch_rss_feeds, db)
-    background_tasks.add_task(scrape_vendor_pages, db)
-    background_tasks.add_task(fetch_paloalto, db)
-    background_tasks.add_task(update_alerts, db)
+    from app.services.notifier import send_alerts
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        start_fetch()
+        fetch_nvd(db, days_back=7)
+        fetch_rss_feeds(db)
+        scrape_vendor_pages(db)
+        fetch_paloalto(db)
+        update_alerts(db)
+        step_start("Notifikace")
+        try:
+            send_alerts(db)
+            step_done("Notifikace", 0)
+        except Exception as e:
+            step_done("Notifikace", 0, str(e))
+        finish_fetch()
+    except Exception as e:
+        logger.error(f"Fetch error: {e}")
+        finish_fetch(str(e))
+
+
+@router.get("/fetch/status")
+def fetch_status():
+    from app.fetch_status import get_status
+    return get_status()
+
+
+@router.post("/fetch")
+async def trigger_fetch(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    from app.fetch_status import get_status
+    if get_status().get("running"):
+        return {"message": "Fetch already running"}
+    background_tasks.add_task(_run_full_fetch, db)
     return {"message": "CVE fetch started in background"}

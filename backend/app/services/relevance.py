@@ -38,11 +38,14 @@ def _cve_matches_product(cve: CVE, product: Product) -> bool:
     return False
 
 
-def update_alerts(db: Session) -> int:
+def update_alerts(db: Session, _report: bool = True) -> int:
     """
     For all unmatched CVEs, check relevance against all customers/products
     and create CVEAlert records where relevant.
     """
+    from app.fetch_status import step_start, step_done
+    if _report:
+        step_start("Relevance")
     # Only process CVEs not yet evaluated for any customer
     all_cves = db.query(CVE).all()
     customers = db.query(Customer).all()
@@ -69,4 +72,6 @@ def update_alerts(db: Session) -> int:
 
     db.commit()
     logger.info(f"Relevance update: {created} new alerts created")
+    if _report:
+        step_done("Relevance", created)
     return created

@@ -1,10 +1,30 @@
-import { useQuery } from '@tanstack/react-query'
-import { api, CVEAlert, Customer, Product, Vendor } from '../api/client'
+import { useState, useEffect, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, CVEAlert, Customer, Product } from '../api/client'
 import SeverityBadge from '../components/SeverityBadge'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, CheckCircle2, Circle, Loader2, AlertCircle } from 'lucide-react'
+
+interface FetchStep {
+  name: string
+  status: 'pending' | 'running' | 'done' | 'error'
+  saved: number
+  error?: string
+}
+interface FetchStatus {
+  running: boolean
+  started_at: string | null
+  finished_at: string | null
+  steps: FetchStep[]
+  total_saved: number
+  error: string | null
+}
 
 export default function Dashboard() {
-  const { data: alerts = [], isLoading, refetch } = useQuery<CVEAlert[]>({
+  const qc = useQueryClient()
+  const [fetchStatus, setFetchStatus] = useState<FetchStatus | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const { data: alerts = [], isLoading } = useQuery<CVEAlert[]>({
     queryKey: ['alerts'],
     queryFn: () => api.get('/cves/alerts?limit=20').then(r => r.data),
   })
@@ -17,10 +37,38 @@ export default function Dashboard() {
     queryFn: () => api.get('/products/').then(r => r.data),
   })
 
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
+  const pollStatus = async () => {
+    try {
+      const r = await api.get('/cves/fetch/status')
+      const s: FetchStatus = r.data
+      setFetchStatus(s)
+      if (!s.running) {
+        stopPolling()
+        qc.invalidateQueries({ queryKey: ['alerts'] })
+      }
+    } catch {
+      stopPolling()
+    }
+  }
+
   const triggerFetch = async () => {
     await api.post('/cves/fetch')
-    setTimeout(() => refetch(), 3000)
+    setFetchStatus(null)
+    // Start polling immediately
+    await pollStatus()
+    pollRef.current = setInterval(pollStatus, 2000)
   }
+
+  useEffect(() => () => stopPolling(), [])
+
+  const isRunning = fetchStatus?.running ?? false
 
   return (
     <div className="p-8">
@@ -31,11 +79,50 @@ export default function Dashboard() {
         </div>
         <button
           onClick={triggerFetch}
-          className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 transition-colors"
+          disabled={isRunning}
+          className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <RefreshCw size={16} /> Spustit fetch
+          <RefreshCw size={16} className={isRunning ? 'animate-spin' : ''} />
+          {isRunning ? 'Probíhá fetch…' : 'Spustit fetch'}
         </button>
       </div>
+
+      {/* Fetch progress panel */}
+      {fetchStatus && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-700 text-sm">Průběh fetchování CVEs</h3>
+            {!isRunning && (
+              <span className={`text-xs font-medium ${fetchStatus.error ? 'text-red-500' : 'text-green-600'}`}>
+                {fetchStatus.error ? `Chyba: ${fetchStatus.error}` : `Dokončeno — ${fetchStatus.total_saved} nových CVEs`}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            {fetchStatus.steps.map(step => (
+              <div key={step.name}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                  step.status === 'running' ? 'border-blue-200 bg-blue-50 text-blue-700' :
+                  step.status === 'done'    ? 'border-green-100 bg-green-50 text-green-700' :
+                  step.status === 'error'   ? 'border-red-100 bg-red-50 text-red-600' :
+                  'border-gray-100 bg-gray-50 text-gray-400'
+                }`}>
+                {step.status === 'running' && <Loader2 size={14} className="animate-spin shrink-0" />}
+                {step.status === 'done'    && <CheckCircle2 size={14} className="shrink-0" />}
+                {step.status === 'error'   && <AlertCircle size={14} className="shrink-0" />}
+                {step.status === 'pending' && <Circle size={14} className="shrink-0" />}
+                <span className="font-medium">{step.name}</span>
+                {step.status === 'done' && step.saved > 0 && (
+                  <span className="text-xs opacity-75">+{step.saved}</span>
+                )}
+                {step.status === 'error' && step.error && (
+                  <span className="text-xs opacity-75" title={step.error}>!</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         <StatCard label="Zákazníci" value={customers.length} color="bg-blue-50 text-blue-700" />

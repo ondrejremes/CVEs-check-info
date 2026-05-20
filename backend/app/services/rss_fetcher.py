@@ -17,6 +17,8 @@ CVE_PATTERN = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
 
 def fetch_rss_feeds(db: Session) -> int:
     """Fetch all enabled RSS scrape configs and extract CVE IDs mentioned in entries."""
+    from app.fetch_status import step_start, step_done
+    step_start("RSS")
     configs = (
         db.query(ScrapeConfig)
         .filter(ScrapeConfig.source_type == "rss", ScrapeConfig.enabled == True)
@@ -32,6 +34,7 @@ def fetch_rss_feeds(db: Session) -> int:
             logger.error(f"RSS feed error for config {config.id}: {e}")
             config.last_status = f"error: {e}"
     db.commit()
+    step_done("RSS", saved)
     return saved
 
 

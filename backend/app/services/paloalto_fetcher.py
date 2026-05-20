@@ -119,10 +119,13 @@ def fetch_paloalto(db: Session) -> int:
         logger.warning("Palo Alto vendor not found in DB (slug paloalto/paloaltonetworks), skipping")
         return 0
 
+    from app.fetch_status import step_start, step_done
+    step_start("Palo Alto")
     try:
         feed = feedparser.parse(RSS_URL)
     except Exception as e:
         logger.error(f"Failed to fetch Palo Alto RSS: {e}")
+        step_done("Palo Alto", 0, str(e))
         return 0
 
     saved = 0
@@ -181,4 +184,5 @@ def fetch_paloalto(db: Session) -> int:
         logger.debug(f"Saved {cve_id} (score={detail.get('cvss_score')}, sev={detail.get('severity')})")
 
     logger.info(f"Palo Alto fetch: {saved} new CVEs saved")
+    step_done("Palo Alto", saved)
     return saved

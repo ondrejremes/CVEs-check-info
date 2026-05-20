@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Product, Vendor } from '../api/client'
-import { Plus, Trash2, Pencil, Check, X } from 'lucide-react'
+import { Plus, Trash2, Pencil, Check, X, Download, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 
 type PForm = { name: string; vendor_id: number; cpe_prefix: string; version_pattern: string }
 const empty: PForm = { name: '', vendor_id: 0, cpe_prefix: '', version_pattern: '' }
+
+interface Suggestion { name: string; cpe_prefix: string }
 
 export default function Products() {
   const qc = useQueryClient()
@@ -12,6 +14,14 @@ export default function Products() {
   const [form, setForm] = useState<PForm>(empty)
   const [editId, setEditId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<PForm>(empty)
+
+  // NVD suggest state
+  const [showSuggest, setShowSuggest] = useState(false)
+  const [suggestVendorId, setSuggestVendorId] = useState(0)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [loadingSuggest, setLoadingSuggest] = useState(false)
+  const [suggestError, setSuggestError] = useState('')
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -42,16 +52,130 @@ export default function Products() {
     setEditForm({ name: p.name, vendor_id: p.vendor_id, cpe_prefix: p.cpe_prefix ?? '', version_pattern: p.version_pattern ?? '' })
   }
 
+  const fetchSuggestions = async () => {
+    if (!suggestVendorId) return
+    setLoadingSuggest(true)
+    setSuggestError('')
+    setSuggestions([])
+    setSelected(new Set())
+    try {
+      const r = await api.get(`/products/suggest?vendor_id=${suggestVendorId}`)
+      setSuggestions(r.data)
+      if (r.data.length === 0) setSuggestError('V NVD nebyly nalezeny žádné produkty pro tohoto výrobce. Zkontrolujte slug výrobce.')
+    } catch {
+      setSuggestError('Chyba při dotazu na NVD API.')
+    } finally {
+      setLoadingSuggest(false)
+    }
+  }
+
+  const toggleAll = (checked: boolean) => {
+    setSelected(checked ? new Set(suggestions.map(s => s.cpe_prefix)) : new Set())
+  }
+
+  const addSelected = async () => {
+    const toAdd = suggestions.filter(s => selected.has(s.cpe_prefix))
+    for (const s of toAdd) {
+      await api.post('/products/', { name: s.name, vendor_id: suggestVendorId, cpe_prefix: s.cpe_prefix, version_pattern: '' })
+    }
+    qc.invalidateQueries({ queryKey: ['products'] })
+    setShowSuggest(false)
+    setSuggestions([])
+    setSelected(new Set())
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Produkty</h2>
-        <button onClick={() => { setShowCreate(!showCreate); setForm(empty) }}
-          className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800">
-          <Plus size={16} /> Přidat produkt
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowSuggest(!showSuggest)}
+            className="flex items-center gap-2 border border-brand text-brand px-4 py-2 rounded-lg text-sm hover:bg-blue-50">
+            <Download size={15} /> Načíst z NVD
+            {showSuggest ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          <button onClick={() => { setShowCreate(!showCreate); setForm(empty) }}
+            className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800">
+            <Plus size={16} /> Přidat ručně
+          </button>
+        </div>
       </div>
 
+      {/* NVD suggest panel */}
+      {showSuggest && (
+        <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-6 mb-6">
+          <h3 className="font-semibold text-gray-700 mb-1">Načíst produkty z NVD CPE databáze</h3>
+          <p className="text-xs text-gray-400 mb-4">Vyberte výrobce a klikněte Načíst — zobrazí se produkty evidované v NVD, které ještě nemáte přidané.</p>
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="text-xs text-gray-500 mb-1 block">Výrobce</label>
+              <select className="input w-full" value={suggestVendorId}
+                onChange={e => { setSuggestVendorId(+e.target.value); setSuggestions([]); setSuggestError('') }}>
+                <option value={0}>-- Vyberte výrobce --</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.name} ({v.slug})</option>)}
+              </select>
+            </div>
+            <button onClick={fetchSuggestions} disabled={!suggestVendorId || loadingSuggest}
+              className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 disabled:opacity-40">
+              {loadingSuggest ? <Loader2 size={15} className="animate-spin" /> : null}
+              Načíst
+            </button>
+          </div>
+
+          {suggestError && <p className="mt-3 text-sm text-orange-500">{suggestError}</p>}
+
+          {suggestions.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input type="checkbox"
+                    checked={selected.size === suggestions.length}
+                    onChange={e => toggleAll(e.target.checked)} />
+                  Vybrat vše ({suggestions.length} produktů)
+                </label>
+                <span className="text-xs text-gray-400">vybráno: {selected.size}</span>
+              </div>
+              <div className="border rounded-lg overflow-auto max-h-80">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 text-gray-500 uppercase sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 w-8"></th>
+                      <th className="px-3 py-2 text-left">Název</th>
+                      <th className="px-3 py-2 text-left font-mono">CPE prefix</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {suggestions.map(s => (
+                      <tr key={s.cpe_prefix} className="hover:bg-blue-50 cursor-pointer"
+                        onClick={() => {
+                          const next = new Set(selected)
+                          next.has(s.cpe_prefix) ? next.delete(s.cpe_prefix) : next.add(s.cpe_prefix)
+                          setSelected(next)
+                        }}>
+                        <td className="px-3 py-1.5 text-center">
+                          <input type="checkbox" readOnly checked={selected.has(s.cpe_prefix)} />
+                        </td>
+                        <td className="px-3 py-1.5 font-medium text-gray-700">{s.name}</td>
+                        <td className="px-3 py-1.5 font-mono text-gray-400">{s.cpe_prefix}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button onClick={addSelected} disabled={selected.size === 0}
+                  className="bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-800 disabled:opacity-40">
+                  Přidat vybrané ({selected.size})
+                </button>
+                <button onClick={() => { setShowSuggest(false); setSuggestions([]); setSelected(new Set()) }}
+                  className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Zavřít</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* manual create form */}
       {showCreate && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
           <h3 className="font-semibold text-gray-700 mb-4">Nový produkt</h3>
@@ -63,7 +187,7 @@ export default function Products() {
               <option value={0}>-- Vyberte výrobce --</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
-            <input className="input" placeholder="CPE prefix (např. cpe:2.3:a:cisco:ios)"
+            <input className="input font-mono" placeholder="CPE prefix (např. cpe:2.3:a:cisco:ios)"
               value={form.cpe_prefix} onChange={e => setForm({ ...form, cpe_prefix: e.target.value })} />
             <input className="input" placeholder="Version pattern (např. 15.*)"
               value={form.version_pattern} onChange={e => setForm({ ...form, version_pattern: e.target.value })} />
@@ -77,6 +201,7 @@ export default function Products() {
         </div>
       )}
 
+      {/* table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
@@ -133,7 +258,7 @@ export default function Products() {
               </tr>
             ))}
             {products.length === 0 && (
-              <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Žádné produkty. Přidejte první.</td></tr>
+              <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Žádné produkty. Přidejte první nebo načtěte z NVD.</td></tr>
             )}
           </tbody>
         </table>

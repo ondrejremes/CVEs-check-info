@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, Depends, HTTPException
 import httpx
 from sqlalchemy.orm import Session
@@ -11,6 +12,31 @@ from app.config import settings
 router = APIRouter(prefix="/products", tags=["products"], dependencies=[Depends(require_api_key)])
 
 NVD_CPE_BASE = "https://services.nvd.nist.gov/rest/json/cpes/2.0"
+PALOALTO_ADVISORY_URL = "https://security.paloaltonetworks.com/"
+
+
+def _fetch_paloalto_advisory_products() -> list[str]:
+    """Scrape product names from the Palo Alto advisory listing page filter checkboxes."""
+    try:
+        resp = httpx.get(
+            PALOALTO_ADVISORY_URL,
+            headers={"User-Agent": "Mozilla/5.0 CVE-Checker/1.0"},
+            timeout=15,
+            follow_redirects=True,
+        )
+        resp.raise_for_status()
+        names = re.findall(r'<input[^>]+name="product"[^>]+value="([^"]+)"', resp.text)
+        # Deduplicate and strip whitespace, filter empties
+        seen = set()
+        result = []
+        for n in names:
+            n = n.strip()
+            if n and n.lower() not in seen:
+                seen.add(n.lower())
+                result.append(n)
+        return sorted(result)
+    except Exception:
+        return []
 
 
 @router.get("/suggest")
@@ -59,6 +85,45 @@ def suggest_products(vendor_id: int, db: Session = Depends(get_db)):
             name = parts[4].replace("_", " ").replace("-", " ").title()
 
         seen[prefix] = {"name": name, "cpe_prefix": prefix}
+
+    # For Palo Alto Networks: advisory page is the primary source.
+    # NVD results are used only to enrich CPE prefixes.
+    is_paloalto = "paloaltonetworks" in (vendor.slug or "") or \
+                  "paloaltonetworks" in (vendor.cpe_vendor or "") or \
+                  "security.paloaltonetworks.com" in (vendor.advisory_url or "")
+    if is_paloalto:
+        existing_names = {
+            p.name.lower()
+            for p in db.query(Product).filter(Product.vendor_id == vendor_id).all()
+        }
+
+        # Build lookup: normalized NVD name → CPE prefix (and CPE product slug → prefix)
+        name_to_prefix: dict[str, str] = {v["name"].lower(): k for k, v in seen.items()}
+        slug_to_prefix: dict[str, str] = {k.split(":")[4]: k for k in seen.keys()}
+
+        def _find_cpe(advisory_name: str) -> str:
+            low = advisory_name.lower()
+            slug = re.sub(r"[^a-z0-9]+", "_", low).strip("_")
+            if low in name_to_prefix:
+                return name_to_prefix[low]
+            if slug in slug_to_prefix:
+                return slug_to_prefix[slug]
+            for nvd_name, prefix in name_to_prefix.items():
+                if low in nvd_name or nvd_name in low:
+                    return prefix
+            return ""
+
+        advisory_products = _fetch_paloalto_advisory_products()
+        result: list[dict] = []
+        for name in advisory_products:
+            if name.lower() in existing_names:
+                continue
+            cpe_prefix = _find_cpe(name)
+            if cpe_prefix in existing_cpes:
+                continue
+            result.append({"name": name, "cpe_prefix": cpe_prefix})
+
+        return result  # already sorted alphabetically by _fetch_paloalto_advisory_products
 
     return sorted(seen.values(), key=lambda x: x["name"])
 

@@ -14,6 +14,7 @@ def _run_fetch():
     from app.services.nvd_fetcher import fetch_nvd
     from app.services.rss_fetcher import fetch_rss_feeds
     from app.services.web_scraper import scrape_vendor_pages
+    from app.services.paloalto_fetcher import fetch_paloalto
     from app.services.relevance import update_alerts
     from app.services.notifier import send_alerts
 
@@ -23,6 +24,7 @@ def _run_fetch():
         fetch_nvd(db, days_back=1)
         fetch_rss_feeds(db)
         scrape_vendor_pages(db)
+        fetch_paloalto(db)
         update_alerts(db)
         send_alerts(db)
         logger.info("Scheduler: fetch cycle complete")

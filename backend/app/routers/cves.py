@@ -66,7 +66,13 @@ def get_cve(cve_id: str, db: Session = Depends(get_db)):
 @router.post("/fetch")
 async def trigger_fetch(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     from app.services.nvd_fetcher import fetch_nvd
+    from app.services.rss_fetcher import fetch_rss_feeds
+    from app.services.web_scraper import scrape_vendor_pages
+    from app.services.paloalto_fetcher import fetch_paloalto
     from app.services.relevance import update_alerts
     background_tasks.add_task(fetch_nvd, db)
+    background_tasks.add_task(fetch_rss_feeds, db)
+    background_tasks.add_task(scrape_vendor_pages, db)
+    background_tasks.add_task(fetch_paloalto, db)
     background_tasks.add_task(update_alerts, db)
     return {"message": "CVE fetch started in background"}
